@@ -32,5 +32,7 @@ public class GroupMember {
 
     private LocalDateTime joinedAt;
 
+
+
     // getters, setters
 }

@@ -12,9 +12,11 @@ import lombok.*;
 @AllArgsConstructor
 
 @Entity
-@Table(name = "groups")
+@Table(name = "user_groups") // ✅ MySQL 예약어 회피 + 의미 명확
 public class Group {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String title;
@@ -25,5 +27,5 @@ public class Group {
 
     private LocalDateTime createdAt;
 
-    // getters, setters
+    // getters, setters (또는 Lombok 사용)
 }
