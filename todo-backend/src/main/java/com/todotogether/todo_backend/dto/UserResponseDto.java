@@ -19,6 +19,4 @@ public class UserResponseDto {
         this.email = user.getEmail();
         this.createdAt = user.getCreatedAt();
     }
-
-
 }
