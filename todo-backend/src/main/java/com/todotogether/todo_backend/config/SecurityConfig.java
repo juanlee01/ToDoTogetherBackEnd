@@ -21,6 +21,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable) // ✅ csrf 비활성화 (람다 방식)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll() // ✅ 회원가입, 로그인 허용
+                        .requestMatchers("/api/auth/**", "/api/ping").permitAll() // Ping Test를 위한허용
                         .anyRequest().authenticated()               // ✅ 나머지 인증 필요
                 );
 
