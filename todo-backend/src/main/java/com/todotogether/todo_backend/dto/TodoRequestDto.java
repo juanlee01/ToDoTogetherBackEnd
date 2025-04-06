@@ -11,7 +11,7 @@ import lombok.Setter;
 public class TodoRequestDto {
     private String title;
     private String body;
-    private Long createdId;
+    //private Long createdId;
     private Long assignedTo;
     private TodoStatus status;
     private String tag;
