@@ -1,3 +1,4 @@
+/*
 package com.todotogether.todo_backend.service;
 
 import com.todotogether.todo_backend.dto.LoginRequestDto;
@@ -20,13 +21,15 @@ public class UserService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
+*/
 /*    public UserService(UserRepository userRepository,
                        BCryptPasswordEncoder passwordEncoder,
                        JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil; // ✅ 생성자에서 초기화
-    }*/
+    }*//*
+
 
 
 
@@ -56,4 +59,67 @@ public class UserService {
         String token = jwtUtil.createToken(user.getUsername());
         return new LoginResponseDto(token);
     }
+}
+*/
+
+package com.todotogether.todo_backend.service;
+
+import com.todotogether.todo_backend.dto.LoginRequestDto;
+import com.todotogether.todo_backend.dto.LoginResponseDto;
+import com.todotogether.todo_backend.dto.SignupRequestDto;
+import com.todotogether.todo_backend.entity.User;
+import com.todotogether.todo_backend.exception.DuplicateUserException;
+import com.todotogether.todo_backend.exception.UnauthorizedException;
+import com.todotogether.todo_backend.exception.UserNotFoundException;
+import com.todotogether.todo_backend.jwt.JwtUtil;
+import com.todotogether.todo_backend.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final UserRepository userRepository;
+    private final BCryptPasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+
+    public User signup(SignupRequestDto dto) {
+        if (userRepository.findByUsername(dto.getUsername()).isPresent()) {
+            throw new DuplicateUserException();
+        }
+
+        User user = new User();
+        user.setUsername(dto.getUsername());
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setEmail(dto.getEmail());
+        user.setCreatedAt(LocalDateTime.now());
+
+        return userRepository.save(user);
+    }
+
+    public LoginResponseDto login(LoginRequestDto dto) {
+        User user = userRepository.findByUsername(dto.getUsername())
+                .orElseThrow(UserNotFoundException::new);
+
+        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+            throw new UnauthorizedException("비밀번호가 일치하지 않습니다.");
+        }
+
+        String token = jwtUtil.createToken(user.getUsername());
+        return new LoginResponseDto(token);
+    }
+
+    public boolean isUsernameAvailable(String username) {
+        return userRepository.findByUsername(username).isEmpty();
+    }
+
+    public boolean isEmailAvailable(String email) {
+        return userRepository.findByEmail(email).isEmpty();
+    }
+
+
 }

@@ -112,10 +112,13 @@ package com.todotogether.todo_backend.controller;
 
 import com.todotogether.todo_backend.dto.TodoRequestDto;
 import com.todotogether.todo_backend.dto.TodoResponseDto;
+import com.todotogether.todo_backend.dto.TodoStatusUpdateRequestDto;
 import com.todotogether.todo_backend.entity.Todo;
+import com.todotogether.todo_backend.entity.TodoStatus;
 import com.todotogether.todo_backend.service.TodoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -132,14 +135,29 @@ public class TodoController {
     }
 
     // 사용자의 할 일 목록을 조회
-    @GetMapping
+    // 모든 코드 조회
+    /*@GetMapping
     public ResponseEntity<List<TodoResponseDto>> getMyTodos(@AuthenticationPrincipal String username) {
         List<Todo> todos = todoService.getMyTodos(username);
         List<TodoResponseDto> response = todos.stream()
                 .map(TodoResponseDto::new)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(response);
+    }*/
+    // 모든 할 일 조회, status, tag로 필터링 기능 추가
+    @GetMapping
+    public ResponseEntity<List<TodoResponseDto>> getMyTodos(
+            @AuthenticationPrincipal String username,
+            @RequestParam(required = false) TodoStatus status,
+            @RequestParam(required = false) String tag
+    ) {
+        List<Todo> todos = todoService.getMyTodosFiltered(username, status, tag);
+        List<TodoResponseDto> response = todos.stream()
+                .map(TodoResponseDto::new)
+                .toList();
+        return ResponseEntity.ok(response);
     }
+
 
     // 할 일을 생성
     @PostMapping
@@ -173,4 +191,16 @@ public class TodoController {
         todoService.deleteTodo(id, username);
         return ResponseEntity.noContent().build();
     }
+    // 할 일 status 변경
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<TodoResponseDto> updateStatus(
+            @PathVariable Long id,
+            @RequestBody TodoStatusUpdateRequestDto dto,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        Todo updated = todoService.updateTodoStatus(id, dto.getStatus(), userDetails.getUsername());
+        return ResponseEntity.ok(new TodoResponseDto(updated));
+    }
+
+
 }

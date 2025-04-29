@@ -11,6 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -43,6 +46,22 @@ public class AuthController {
 
         return ResponseEntity.ok(new UserResponseDto(user));
     }
+    @GetMapping("/check-username")
+    public ResponseEntity<Map<String, Boolean>> checkUsername(@RequestParam String username) {
+        boolean available = userService.isUsernameAvailable(username);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("available", available);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/check-email")
+    public ResponseEntity<Map<String, Boolean>> checkEmail(@RequestParam String email) {
+        boolean available = userService.isEmailAvailable(email);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("available", available);
+        return ResponseEntity.ok(response);
+    }
+
 
 
 }
