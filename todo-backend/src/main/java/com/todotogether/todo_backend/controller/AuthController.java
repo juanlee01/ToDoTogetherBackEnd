@@ -61,7 +61,4 @@ public class AuthController {
         response.put("available", available);
         return ResponseEntity.ok(response);
     }
-
-
-
 }

@@ -15,5 +15,6 @@ public class TodoRequestDto {
     private Long assignedTo;
     private TodoStatus status;
     private String tag;
+    private Long groupId; // 선택적으로 할당 가능
 }
 

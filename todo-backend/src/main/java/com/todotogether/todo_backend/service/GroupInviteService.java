@@ -2,6 +2,7 @@ package com.todotogether.todo_backend.service;
 
 import com.todotogether.todo_backend.entity.*;
 import com.todotogether.todo_backend.repository.GroupInviteRepository;
+import com.todotogether.todo_backend.repository.GroupMemberRepository;
 import com.todotogether.todo_backend.repository .GroupRepository;
 import com.todotogether.todo_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,8 @@ public class GroupInviteService {
     private final GroupInviteRepository groupInviteRepository;
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
+    private final GroupMemberRepository groupMemberRepository;
+
 
     // 초대 보내기 (이메일 기반)
     public void inviteUserToGroup(Long groupId, String senderUsername, String receiverEmail) {
@@ -56,7 +59,30 @@ public class GroupInviteService {
         groupInviteRepository.save(invite);
 
         // 그룹에 멤버 추가 (GroupMembers 테이블에 직접 추가해야 함)
-        // TODO: 나중에 GroupMember 엔티티 연동할 때 추가 작업
+
+        // 초대 상태 업데이트
+        invite.setStatus(InviteStatus.ACCEPTED);
+        groupInviteRepository.save(invite);
+
+        // 이미 가입된 멤버인지 확인
+        Group group = invite.getGroup();
+        User receiver = invite.getReceiver();
+        GroupMemberId memberId = new GroupMemberId(group.getId(), receiver.getId());
+
+        boolean isAlreadyMember = groupMemberRepository.existsById(memberId);
+        if (isAlreadyMember) {
+            return; // 이미 멤버라면 추가하지 않음
+        }
+
+        // 새 그룹 멤버 추가
+        GroupMember newMember = new GroupMember();
+        newMember.setId(memberId);
+        newMember.setGroup(group);
+        newMember.setUser(receiver);
+        newMember.setRole(UsersRole.MEMBER);  // 기본 역할
+        newMember.setJoinedAt(LocalDateTime.now());
+
+        groupMemberRepository.save(newMember);
     }
 
     // 초대 거절

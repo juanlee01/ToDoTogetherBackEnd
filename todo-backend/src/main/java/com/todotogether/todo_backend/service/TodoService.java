@@ -290,9 +290,12 @@ import com.todotogether.todo_backend.dto.TodoRequestDto;
 import com.todotogether.todo_backend.entity.Todo;
 import com.todotogether.todo_backend.entity.TodoStatus;
 import com.todotogether.todo_backend.entity.User;
+import com.todotogether.todo_backend.entity.Group;
 import com.todotogether.todo_backend.exception.TodoNotFoundException;
 import com.todotogether.todo_backend.exception.UnauthorizedException;
 import com.todotogether.todo_backend.exception.UserNotFoundException;
+import com.todotogether.todo_backend.repository.GroupMemberRepository;
+import com.todotogether.todo_backend.repository.GroupRepository;
 import com.todotogether.todo_backend.repository.TodoRepository;
 import com.todotogether.todo_backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -305,10 +308,14 @@ public class TodoService {
 
     private final TodoRepository todoRepository;
     private final UserRepository userRepository;
+    private final GroupRepository groupRepository;
+    private final GroupMemberRepository groupMemberRepository;
 
-    public TodoService(TodoRepository todoRepository, UserRepository userRepository) {
+    public TodoService(TodoRepository todoRepository, UserRepository userRepository, GroupRepository groupRepository, GroupMemberRepository groupMemberRepository) {
         this.todoRepository = todoRepository;
         this.userRepository = userRepository;
+        this.groupRepository = groupRepository;
+        this.groupMemberRepository = groupMemberRepository;
     }
 
     public List<Todo> getMyTodos(String username) {
@@ -330,6 +337,17 @@ public class TodoService {
         todo.setStatus(dto.getStatus());
         todo.setTag(dto.getTag());
         todo.setCreatedAt(LocalDateTime.now());
+        if (dto.getGroupId() != null) {
+            Group group = groupRepository.findById(dto.getGroupId())
+                    .orElseThrow(() -> new RuntimeException("그룹을 찾을 수 없습니다."));
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+            boolean isMember = groupMemberRepository.existsByGroupAndUser(group, user);
+            if (!isMember) throw new RuntimeException("그룹 멤버만 그룹 Todo를 만들 수 있습니다.");
+
+            todo.setGroup(group);
+        }
 
         return todoRepository.save(todo);
     }
@@ -400,6 +418,19 @@ public class TodoService {
                 .filter(todo -> tag == null || tag.equals(todo.getTag()))
                 .toList();
     }
+
+    public List<Todo> getTodosByGroup(Long groupId, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("그룹을 찾을 수 없습니다."));
+
+        boolean isMember = groupMemberRepository.existsByGroupAndUser(group, user);
+        if (!isMember) throw new RuntimeException("그룹 멤버만 접근할 수 있습니다.");
+
+        return todoRepository.findAllByGroup(group);
+    }
+
 
 
 }

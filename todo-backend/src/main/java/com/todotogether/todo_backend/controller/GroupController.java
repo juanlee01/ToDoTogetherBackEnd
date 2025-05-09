@@ -1,12 +1,17 @@
 
 package com.todotogether.todo_backend.controller;
 
+import com.todotogether.todo_backend.dto.GroupMemberResponseDto;
 import com.todotogether.todo_backend.dto.GroupRequestDto;
 import com.todotogether.todo_backend.dto.GroupResponseDto;
+import com.todotogether.todo_backend.dto.TodoResponseDto;
 import com.todotogether.todo_backend.entity.Group;
 import com.todotogether.todo_backend.entity.GroupInvite;
+import com.todotogether.todo_backend.entity.GroupMember;
+import com.todotogether.todo_backend.entity.Todo;
 import com.todotogether.todo_backend.service.GroupInviteService;
 import com.todotogether.todo_backend.service.GroupService;
+import com.todotogether.todo_backend.service.TodoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +29,7 @@ public class GroupController {
 
     private final GroupService groupService;
     private final GroupInviteService groupInviteService;
+    private final TodoService todoService;
 
     // 🔹 1. 그룹 생성
     @PostMapping
@@ -75,4 +81,43 @@ public class GroupController {
         groupInviteService.rejectInvite(inviteId, username);
         return ResponseEntity.ok().body("초대를 거절했습니다.");
     }
+
+    @GetMapping("/{groupId}/members")
+    public ResponseEntity<List<GroupMemberResponseDto>> getGroupMembers(@PathVariable Long groupId,
+                                                                        @AuthenticationPrincipal String username) {
+        List<GroupMember> members = groupService.getGroupMembers(groupId, username);
+        List<GroupMemberResponseDto> response = members.stream()
+                .map(GroupMemberResponseDto::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{groupId}")
+    public ResponseEntity<List<TodoResponseDto>> getTodosByGroup(@PathVariable Long groupId,
+                                                                 @AuthenticationPrincipal String username) {
+        List<Todo> todos = todoService.getTodosByGroup(groupId, username);
+        List<TodoResponseDto> response = todos.stream()
+                .map(TodoResponseDto::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{groupId}/leave")
+    public ResponseEntity<String> leaveGroup(@PathVariable Long groupId,
+                                             @AuthenticationPrincipal String username) {
+        groupService.leaveGroup(groupId, username);
+        return ResponseEntity.ok("그룹에서 성공적으로 탈퇴했습니다.");
+    }
+
+    @PutMapping("/{groupId}/leader/{newLeaderUserId}")
+    public ResponseEntity<String> transferLeadership(@PathVariable Long groupId,
+                                                     @PathVariable Long newLeaderUserId,
+                                                     @AuthenticationPrincipal String username) {
+        groupService.transferLeadership(groupId, newLeaderUserId, username);
+        return ResponseEntity.ok("리더가 성공적으로 변경되었습니다.");
+    }
+
+
+
+
 }

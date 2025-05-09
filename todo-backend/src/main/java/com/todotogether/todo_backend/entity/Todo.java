@@ -29,6 +29,10 @@ public class Todo {
     @JoinColumn(name = "assigned_to")
     private User assignedTo;
 
+    @ManyToOne
+    @JoinColumn(name = "group_id")
+    private Group group; // null일 경우 개인 Todo로 간주
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TodoStatus status;
