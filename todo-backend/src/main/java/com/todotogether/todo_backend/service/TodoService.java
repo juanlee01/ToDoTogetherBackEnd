@@ -283,14 +283,10 @@ public class TodoService {
         }
     }
 }*/
-
 package com.todotogether.todo_backend.service;
 
 import com.todotogether.todo_backend.dto.TodoRequestDto;
-import com.todotogether.todo_backend.entity.Todo;
-import com.todotogether.todo_backend.entity.TodoStatus;
-import com.todotogether.todo_backend.entity.User;
-import com.todotogether.todo_backend.entity.Group;
+import com.todotogether.todo_backend.entity.*;
 import com.todotogether.todo_backend.exception.TodoNotFoundException;
 import com.todotogether.todo_backend.exception.UnauthorizedException;
 import com.todotogether.todo_backend.exception.UserNotFoundException;
@@ -298,26 +294,25 @@ import com.todotogether.todo_backend.repository.GroupMemberRepository;
 import com.todotogether.todo_backend.repository.GroupRepository;
 import com.todotogether.todo_backend.repository.TodoRepository;
 import com.todotogether.todo_backend.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class TodoService {
 
     private final TodoRepository todoRepository;
     private final UserRepository userRepository;
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final TodoPermissionService todoPermissionService;
 
-    public TodoService(TodoRepository todoRepository, UserRepository userRepository, GroupRepository groupRepository, GroupMemberRepository groupMemberRepository) {
-        this.todoRepository = todoRepository;
-        this.userRepository = userRepository;
-        this.groupRepository = groupRepository;
-        this.groupMemberRepository = groupMemberRepository;
-    }
-
+    /**
+     * 개인 할 일 전체 조회
+     */
     public List<Todo> getMyTodos(String username) {
         User user = getUserByUsername(username);
         return todoRepository.findAll().stream()
@@ -325,6 +320,9 @@ public class TodoService {
                 .toList();
     }
 
+    /**
+     * 할 일 생성 (개인 또는 그룹)
+     */
     public Todo createTodo(TodoRequestDto dto, String username) {
         User creator = getUserByUsername(username);
         User assignee = getUserByIdNullable(dto.getAssignedTo());
@@ -337,14 +335,13 @@ public class TodoService {
         todo.setStatus(dto.getStatus());
         todo.setTag(dto.getTag());
         todo.setCreatedAt(LocalDateTime.now());
+
+        // 그룹 할 일인 경우
         if (dto.getGroupId() != null) {
             Group group = groupRepository.findById(dto.getGroupId())
                     .orElseThrow(() -> new RuntimeException("그룹을 찾을 수 없습니다."));
-            User user = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-            boolean isMember = groupMemberRepository.existsByGroupAndUser(group, user);
-            if (!isMember) throw new RuntimeException("그룹 멤버만 그룹 Todo를 만들 수 있습니다.");
+            todoPermissionService.validateTodoCreation(group.getId(), username); // GUEST 제한
 
             todo.setGroup(group);
         }
@@ -352,15 +349,21 @@ public class TodoService {
         return todoRepository.save(todo);
     }
 
+    /**
+     * ID로 단일 할 일 조회 (작성자만 가능)
+     */
     public Todo getTodoById(Long id, String username) {
         Todo todo = getTodoById(id);
         validateOwner(todo, username);
         return todo;
     }
 
+    /**
+     * 할 일 수정 (작성자만 가능)
+     */
     public Todo updateTodo(Long id, TodoRequestDto dto, String username) {
         Todo todo = getTodoById(id);
-        validateOwner(todo, username);
+        todoPermissionService.validateTodoModification(todo, username);
 
         todo.setTitle(dto.getTitle());
         todo.setBody(dto.getBody());
@@ -373,11 +376,53 @@ public class TodoService {
         return todoRepository.save(todo);
     }
 
+    /**
+     * 할 일 삭제 (작성자만 가능)
+     */
     public void deleteTodo(Long id, String username) {
         Todo todo = getTodoById(id);
-        validateOwner(todo, username);
+        todoPermissionService.validateTodoModification(todo, username);
         todoRepository.delete(todo);
     }
+
+    /**
+     * 상태 변경 (작성자만 가능)
+     */
+    public Todo updateTodoStatus(Long id, TodoStatus status, String username) {
+        Todo todo = getTodoById(id);
+        validateOwner(todo, username);
+        todo.setStatus(status);
+        return todoRepository.save(todo);
+    }
+
+    /**
+     * 필터 조건으로 개인 할 일 조회
+     */
+    public List<Todo> getMyTodosFiltered(String username, TodoStatus status, String tag) {
+        User user = getUserByUsername(username);
+        return todoRepository.findAll().stream()
+                .filter(todo -> todo.getCreatedBy().equals(user))
+                .filter(todo -> status == null || todo.getStatus() == status)
+                .filter(todo -> tag == null || tag.equals(todo.getTag()))
+                .toList();
+    }
+
+    /**
+     * 그룹 ID 기준 할 일 목록 반환
+     */
+    public List<Todo> getTodosByGroup(Long groupId, String username) {
+        User user = getUserByUsername(username);
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("그룹을 찾을 수 없습니다."));
+
+        if (!groupMemberRepository.existsByGroupAndUser(group, user)) {
+            throw new UnauthorizedException("그룹 멤버만 접근할 수 있습니다.");
+        }
+
+        return todoRepository.findAllByGroup(group);
+    }
+
+    // ========== 내부 유틸 메서드 ==========
 
     private User getUserByUsername(String username) {
         return userRepository.findByUsername(username)
@@ -400,37 +445,4 @@ public class TodoService {
             throw new UnauthorizedException("작성자 본인만 접근 가능합니다.");
         }
     }
-
-    public Todo updateTodoStatus(Long id, TodoStatus status, String username) {
-        Todo todo = getTodoById(id);
-        validateOwner(todo, username); // 작성자인지 확인
-
-        todo.setStatus(status);
-        return todoRepository.save(todo);
-    }
-
-    public List<Todo> getMyTodosFiltered(String username, TodoStatus status, String tag) {
-        User user = getUserByUsername(username);
-
-        return todoRepository.findAll().stream()
-                .filter(todo -> todo.getCreatedBy().equals(user))
-                .filter(todo -> status == null || todo.getStatus() == status)
-                .filter(todo -> tag == null || tag.equals(todo.getTag()))
-                .toList();
-    }
-
-    public List<Todo> getTodosByGroup(Long groupId, String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
-        Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new RuntimeException("그룹을 찾을 수 없습니다."));
-
-        boolean isMember = groupMemberRepository.existsByGroupAndUser(group, user);
-        if (!isMember) throw new RuntimeException("그룹 멤버만 접근할 수 있습니다.");
-
-        return todoRepository.findAllByGroup(group);
-    }
-
-
-
 }

@@ -85,11 +85,8 @@ public class GroupController {
     @GetMapping("/{groupId}/members")
     public ResponseEntity<List<GroupMemberResponseDto>> getGroupMembers(@PathVariable Long groupId,
                                                                         @AuthenticationPrincipal String username) {
-        List<GroupMember> members = groupService.getGroupMembers(groupId, username);
-        List<GroupMemberResponseDto> response = members.stream()
-                .map(GroupMemberResponseDto::new)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
+        List<GroupMemberResponseDto> members = groupService.getGroupMemberDtos(groupId, username);
+        return ResponseEntity.ok(members);
     }
 
     @GetMapping("/{groupId}")
