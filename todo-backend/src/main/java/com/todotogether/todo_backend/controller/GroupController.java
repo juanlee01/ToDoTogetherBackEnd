@@ -5,10 +5,7 @@ import com.todotogether.todo_backend.dto.GroupMemberResponseDto;
 import com.todotogether.todo_backend.dto.GroupRequestDto;
 import com.todotogether.todo_backend.dto.GroupResponseDto;
 import com.todotogether.todo_backend.dto.TodoResponseDto;
-import com.todotogether.todo_backend.entity.Group;
-import com.todotogether.todo_backend.entity.GroupInvite;
-import com.todotogether.todo_backend.entity.GroupMember;
-import com.todotogether.todo_backend.entity.Todo;
+import com.todotogether.todo_backend.entity.*;
 import com.todotogether.todo_backend.service.GroupInviteService;
 import com.todotogether.todo_backend.service.GroupService;
 import com.todotogether.todo_backend.service.TodoService;
@@ -114,7 +111,20 @@ public class GroupController {
         return ResponseEntity.ok("리더가 성공적으로 변경되었습니다.");
     }
 
+    @GetMapping("/{groupId}/me")
+    public ResponseEntity<GroupMemberResponseDto> getMyGroupInfo(@PathVariable Long groupId,
+                                                                 @AuthenticationPrincipal String username) {
+        GroupMemberResponseDto dto = groupService.getMyGroupMemberInfo(groupId, username);
+        return ResponseEntity.ok(dto);
+    }
 
-
+    @PutMapping("/{groupId}/members/{targetUserId}/role")
+    public ResponseEntity<Void> changeRole(@PathVariable Long groupId,
+                                           @PathVariable Long targetUserId,
+                                           @RequestParam UsersRole newRole,
+                                           @AuthenticationPrincipal String username) {
+        groupService.changeMemberAccessLevel(groupId, targetUserId, username, newRole);
+        return ResponseEntity.ok().build();
+    }
 
 }

@@ -147,4 +147,15 @@ public class GroupService {
 
         targetMember.setRole(newRole);
     }
+
+    public GroupMemberResponseDto getMyGroupMemberInfo(Long groupId, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, user.getId())
+                .orElseThrow(() -> new RuntimeException("해당 그룹의 멤버가 아닙니다."));
+
+        return new GroupMemberResponseDto(member);
+    }
+
 }
