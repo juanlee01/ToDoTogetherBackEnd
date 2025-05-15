@@ -285,6 +285,8 @@ public class TodoService {
 }*/
 package com.todotogether.todo_backend.service;
 
+import com.todotogether.todo_backend.dto.DashboardResponseDto;
+import com.todotogether.todo_backend.dto.PersonalDashboardResponseDto;
 import com.todotogether.todo_backend.dto.TodoRequestDto;
 import com.todotogether.todo_backend.entity.*;
 import com.todotogether.todo_backend.exception.TodoNotFoundException;
@@ -299,6 +301,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -421,6 +425,76 @@ public class TodoService {
 
         return todoRepository.findAllByGroup(group);
     }
+
+    public List<Todo> getMyPersonalTodos(String username) {
+        User user = getUserByUsername(username);
+        return todoRepository.findAll().stream()
+                .filter(todo -> todo.getCreatedBy().equals(user))
+                .filter(todo -> todo.getGroup() == null) // 그룹 소속이 아닌 경우만
+                .toList();
+    }
+
+    public DashboardResponseDto getDashboard(Long groupId, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(UserNotFoundException::new);
+
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("그룹을 찾을 수 없습니다."));
+
+        // 그룹 멤버 여부 확인
+        if (!groupMemberRepository.existsByGroupAndUser(group, user)) {
+            throw new UnauthorizedException("그룹 멤버만 접근 가능합니다.");
+        }
+
+        List<Todo> todos = todoRepository.findAllByGroup(group);
+
+        long total = todos.size();
+        Map<TodoStatus, Long> statusCounts = todos.stream()
+                .collect(Collectors.groupingBy(Todo::getStatus, Collectors.counting()));
+
+        double completionRate = total == 0 ? 0.0 :
+                (statusCounts.getOrDefault(TodoStatus.COMPLETED, 0L) * 100.0) / total;
+
+        Map<String, Long> assigneeMap = todos.stream()
+                .filter(todo -> todo.getAssignedTo() != null)
+                .collect(Collectors.groupingBy(
+                        todo -> todo.getAssignedTo().getUsername(),
+                        Collectors.counting()
+                ));
+
+        Map<String, Long> tagMap = todos.stream()
+                .filter(todo -> todo.getTag() != null)
+                .collect(Collectors.groupingBy(Todo::getTag, Collectors.counting()));
+
+        return new DashboardResponseDto(group.getTitle(), total, statusCounts, completionRate, assigneeMap, tagMap);
+    }
+
+    public PersonalDashboardResponseDto getPersonalDashboard(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        List<Todo> todos = todoRepository.findAll().stream()
+                .filter(todo -> todo.getCreatedBy().equals(user))
+                .filter(todo -> todo.getGroup() == null) // ✅ 그룹이 없는 개인 Todo만 대상
+                .toList();
+
+        long total = todos.size();
+
+        Map<TodoStatus, Long> statusCounts = todos.stream()
+                .collect(Collectors.groupingBy(Todo::getStatus, Collectors.counting()));
+
+        double completionRate = total == 0 ? 0.0 :
+                (statusCounts.getOrDefault(TodoStatus.COMPLETED, 0L) * 100.0) / total;
+
+        Map<String, Long> tagCounts = todos.stream()
+                .filter(todo -> todo.getTag() != null)
+                .collect(Collectors.groupingBy(Todo::getTag, Collectors.counting()));
+
+        return new PersonalDashboardResponseDto(total, statusCounts, completionRate, tagCounts);
+    }
+
+
+
 
     // ========== 내부 유틸 메서드 ==========
 

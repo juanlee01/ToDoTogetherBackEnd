@@ -2,6 +2,7 @@ package com.todotogether.todo_backend.service;
 
 import com.todotogether.todo_backend.dto.GroupMemberResponseDto;
 import com.todotogether.todo_backend.dto.GroupRequestDto;
+import com.todotogether.todo_backend.dto.GroupSummaryDto;
 import com.todotogether.todo_backend.entity.*;
 import com.todotogether.todo_backend.repository.GroupRepository;
 import com.todotogether.todo_backend.repository.UserRepository;
@@ -103,14 +104,14 @@ public class GroupService {
 
         UsersRole requesterRole = permissionService.getRoleInGroup(groupId, requester.getId());
         if (requesterRole != UsersRole.LEADER) {
-            throw new RuntimeException("LEADER만 리더를 위임할 수 있습니다.");
+            throw new RuntimeException("LEADER만 LEABER를 위임할 수 있습니다.");
         }
 
         GroupMember targetMember = groupMemberRepository.findByGroupIdAndUserId(groupId, newLeaderUserId)
                 .orElseThrow(() -> new RuntimeException("대상 사용자는 그룹 멤버가 아닙니다."));
 
         if (targetMember.getRole() != UsersRole.MEMBER) {
-            throw new RuntimeException("리더는 MEMBER에게만 위임할 수 있습니다.");
+            throw new RuntimeException("LEADER는 MEMBER에게만 위임할 수 있습니다.");
         }
 
         GroupMember currentLeader = groupMemberRepository.findByGroupIdAndUserId(groupId, requester.getId()).get();
@@ -157,5 +158,40 @@ public class GroupService {
 
         return new GroupMemberResponseDto(member);
     }
+
+    public List<Group> getGroupsByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        return groupMemberRepository.findAllByUser(user).stream()
+                .map(GroupMember::getGroup)
+                .toList();
+    }
+
+
+    @Transactional
+    public void kickMember(Long groupId, Long targetUserId, String requesterUsername) {
+        User requester = userRepository.findByUsername(requesterUsername)
+                .orElseThrow(() -> new RuntimeException("요청자를 찾을 수 없습니다."));
+
+        GroupMember requesterMember = groupMemberRepository.findByGroupIdAndUserId(groupId, requester.getId())
+                .orElseThrow(() -> new RuntimeException("요청자는 그룹 멤버가 아닙니다."));
+
+        if (requesterMember.getRole() != UsersRole.LEADER) {
+            throw new RuntimeException("LEADER만 멤버를 강제 탈퇴시킬 수 있습니다.");
+        }
+
+        if (requester.getId().equals(targetUserId)) {
+            throw new RuntimeException("자기 자신은 이 기능으로 탈퇴할 수 없습니다.");
+        }
+
+        GroupMemberId memberId = new GroupMemberId(groupId, targetUserId);
+        if (!groupMemberRepository.existsById(memberId)) {
+            throw new RuntimeException("대상 사용자가 그룹 멤버가 아닙니다.");
+        }
+
+        groupMemberRepository.deleteById(memberId);
+    }
+
+
 
 }

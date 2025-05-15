@@ -110,6 +110,7 @@ public class TodoController {
 
 package com.todotogether.todo_backend.controller;
 
+import com.todotogether.todo_backend.dto.PersonalDashboardResponseDto;
 import com.todotogether.todo_backend.dto.TodoRequestDto;
 import com.todotogether.todo_backend.dto.TodoResponseDto;
 import com.todotogether.todo_backend.dto.TodoStatusUpdateRequestDto;
@@ -202,5 +203,32 @@ public class TodoController {
         return ResponseEntity.ok(new TodoResponseDto(updated));
     }
 
+    // 특정 그룹의 할 일 목록을 조회
+    @GetMapping("/group/{groupId}")
+    public ResponseEntity<List<TodoResponseDto>> getTodosByGroup(@PathVariable Long groupId,
+                                                                 @AuthenticationPrincipal String username) {
+        List<Todo> todos = todoService.getTodosByGroup(groupId, username);
+        List<TodoResponseDto> response = todos.stream()
+                .map(TodoResponseDto::new)
+                .toList();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/personal")
+    public ResponseEntity<List<TodoResponseDto>> getPersonalTodos(
+            @AuthenticationPrincipal String username
+    ) {
+        List<Todo> todos = todoService.getMyPersonalTodos(username);
+        List<TodoResponseDto> response = todos.stream()
+                .map(TodoResponseDto::new)
+                .toList();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me/dashboard")
+    public ResponseEntity<PersonalDashboardResponseDto> getPersonalDashboard(
+            @AuthenticationPrincipal String username) {
+        return ResponseEntity.ok(todoService.getPersonalDashboard(username));
+    }
 
 }

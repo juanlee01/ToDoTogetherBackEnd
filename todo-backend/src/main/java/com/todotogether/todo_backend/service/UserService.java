@@ -28,7 +28,8 @@ public class UserService {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil; // ✅ 생성자에서 초기화
-    }*//*
+    }*/
+/*
 
 
 
@@ -64,9 +65,7 @@ public class UserService {
 
 package com.todotogether.todo_backend.service;
 
-import com.todotogether.todo_backend.dto.LoginRequestDto;
-import com.todotogether.todo_backend.dto.LoginResponseDto;
-import com.todotogether.todo_backend.dto.SignupRequestDto;
+import com.todotogether.todo_backend.dto.*;
 import com.todotogether.todo_backend.entity.User;
 import com.todotogether.todo_backend.exception.DuplicateUserException;
 import com.todotogether.todo_backend.exception.UnauthorizedException;
@@ -76,6 +75,7 @@ import com.todotogether.todo_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -120,6 +120,43 @@ public class UserService {
     public boolean isEmailAvailable(String email) {
         return userRepository.findByEmail(email).isEmpty();
     }
+
+    public UserProfileResponseDto getMyProfile(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException());
+        return new UserProfileResponseDto(user);
+    }
+
+    @Transactional
+    public void updateMyProfile(String username, UserProfileUpdateDto dto) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException());
+
+        if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
+            user.setEmail(dto.getEmail());
+        }
+        // 비밀번호 수정 추가 가능
+    }
+
+    @Transactional
+    public void deleteMyAccount(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException());
+
+        userRepository.delete(user);
+    }
+    @Transactional
+    public void changePassword(String username, PasswordChangeDto dto) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new RuntimeException("기존 비밀번호가 일치하지 않습니다.");
+        }
+
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+    }
+
 
 
 }

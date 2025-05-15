@@ -16,5 +16,9 @@ public interface GroupInviteRepository extends JpaRepository<GroupInvite, Long> 
 
     // 특정 그룹에 특정 유저가 이미 초대된 내역이 있는지 확인
     Optional<GroupInvite> findByGroupAndReceiver(Group group, User receiver);
+
+    // PENDING 상태의 초대 여부 확인
+    Optional<GroupInvite> findByGroupAndReceiverAndStatus(Group group, User receiver, InviteStatus status);
+
 }
 
