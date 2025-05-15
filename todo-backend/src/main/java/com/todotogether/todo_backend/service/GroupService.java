@@ -192,6 +192,25 @@ public class GroupService {
         groupMemberRepository.deleteById(memberId);
     }
 
+    /*
+        * 그룹 제목을 변경한다. (LEADER만 가능)
+     */
+    public void updateGroupTitle(Long groupId, String username, String newTitle) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("그룹을 찾을 수 없습니다."));
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        UsersRole role = permissionService.getRoleInGroup(groupId, user.getId());
+        if (role != UsersRole.LEADER) {
+            throw new SecurityException("그룹 이름은 리더만 변경할 수 있습니다.");
+        }
+
+        group.setTitle(newTitle);
+        groupRepository.save(group);
+    }
+
 
 
 }

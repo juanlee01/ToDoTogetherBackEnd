@@ -309,4 +309,20 @@ public class GroupController {
         groupService.kickMember(groupId, userId, principalUsername);
         return ResponseEntity.noContent().build();  // 204 No Content
     }
+
+    /*
+        * 그룹 이름 변경
+     */
+    @PutMapping("/{groupId}/title")
+    public ResponseEntity<Map<String, String>> updateGroupTitle(@PathVariable Long groupId,
+                                                                @RequestBody GroupUpdateRequestDto request,
+                                                                @AuthenticationPrincipal String principalUsername) {
+        try {
+            groupService.updateGroupTitle(groupId, principalUsername, request.getTitle());
+            return ResponseEntity.ok(Map.of("message", "그룹 이름이 성공적으로 변경되었습니다."));
+        } catch (IllegalArgumentException | SecurityException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
 }
